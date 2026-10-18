@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Slideshow de uma pasta local de fotos, com cinco temas de transição e tela cheia.">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<title>Lanterna Mágica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Caveat:wght@500&display=swap">
+<style>
+/* Layout: sala de projeção — palco 16:9 à esquerda, console de ajustes à direita, filmstrip sob o palco.
+   Tema escuro único, de propósito: é uma sala com a luz apagada. */
+:root{
+  --bg:#101217; --panel:#181b22; --raised:#21252f; --line:#2c303c;
+  --fg:#ece6da; --muted:#9a968d; --lamp:#efb850; --lamp-ink:#1b1407;
+  --f-display:'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --f-body:'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --f-hand:'Caveat', 'Segoe Print', 'Bradley Hand', cursive;
+  color-scheme:dark;
+}
+html.noscroll, html.noscroll body{overflow:hidden}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1320px;margin:0 auto;padding-block:22px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
+
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.brand{display:flex;gap:14px;align-items:center}
+.brand svg{width:40px;height:40px;flex:none;color:var(--lamp)}
+h1{font-family:var(--f-display);font-weight:700;font-size:30px;line-height:1.05;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.brand p{margin:3px 0 0;color:var(--muted);font-size:14px}
+.keys{color:var(--muted);font-size:13px;display:flex;gap:14px;flex-wrap:wrap}
+kbd{font-family:var(--f-mono);font-size:11.5px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--fg);background:var(--raised)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:22px;align-items:start}
+@media (max-width:920px){.grid{grid-template-columns:minmax(0,1fr)}}
+.main{display:grid;gap:12px;min-width:0}
+
+/* palco */
+.stage{position:relative;width:100%;max-width:100%;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px var(--line),0 30px 60px -30px rgb(0 0 0 / .8);cursor:pointer;user-select:none;-webkit-user-select:none}
+.stage:fullscreen{border-radius:0;aspect-ratio:auto;width:100vw;height:100vh;box-shadow:none}
+.stage:-webkit-full-screen{border-radius:0;aspect-ratio:auto;width:100vw;height:100vh;box-shadow:none}
+.stage.pseudo-fs{position:fixed;inset:0;z-index:100;width:auto;height:auto;aspect-ratio:auto;border-radius:0;box-shadow:none}
+.stage.fs{cursor:default}
+.stage.fs.idle{cursor:none}
+.scene{position:absolute;inset:0;container-type:size;overflow:hidden}
+.layer{position:absolute;inset:0;background-position:center;background-repeat:no-repeat;will-change:transform,opacity}
+.caption{position:absolute;left:max(18px,env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:70%;font-weight:500;font-size:clamp(13px,1.6vw,20px);color:#fff;text-shadow:0 1px 12px rgb(0 0 0 / .8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.busy-note{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));padding:6px 12px;border-radius:999px;background:rgb(10 10 12 / .7);color:#eee;font-size:13px;pointer-events:none;z-index:5}
+.thumb.wait{display:grid;place-items:center;font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.thumb.wait img{display:none}
+.progress{position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--lamp);transform:scaleX(0);transform-origin:left;opacity:.9;pointer-events:none}
+.hud{display:none}
+.stage.fs .hud{display:flex;position:absolute;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);gap:6px;align-items:center;padding:6px 8px;border-radius:999px;background:rgb(10 10 12 / .62);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);opacity:0;pointer-events:none;transition:opacity .35s}
+.stage.fs.awake .hud{opacity:1;pointer-events:auto}
+.hud .count{color:#eee;padding:0 8px}
+.hud .btn{background:transparent;border-color:transparent;color:#fff}
+.hud .btn.play{background:var(--lamp);color:var(--lamp-ink)}
+
+/* transporte */
+.bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.btn{display:inline-grid;place-items:center;width:40px;height:40px;border-radius:999px;border:1px solid var(--line);background:var(--raised);cursor:pointer;padding:0;transition:border-color .15s,background .15s}
+.btn:hover{border-color:var(--muted)}
+.btn svg{width:18px;height:18px}
+.btn.play{width:48px;height:48px;background:var(--lamp);color:var(--lamp-ink);border-color:transparent}
+.btn.play:hover{background:#f7c869}
+.count{font-family:var(--f-mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;padding:0 6px;white-space:nowrap}
+.spacer{flex:1}
+.wide{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--raised);cursor:pointer;font-weight:600;font-size:14px}
+.wide:hover{border-color:var(--lamp)}
+.wide svg{width:17px;height:17px}
+
+.strip{position:relative;display:flex;gap:6px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.thumb{flex:0 0 auto;width:84px;aspect-ratio:3/2;border-radius:6px;overflow:hidden;border:2px solid transparent;padding:0;background:var(--raised);cursor:pointer;opacity:.55;transition:opacity .2s,border-color .2s}
+.thumb:hover{opacity:.9}
+.thumb.on{border-color:var(--lamp);opacity:1}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* console */
+.panel{display:grid;gap:22px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 18px;min-width:0}
+.sec{display:grid;gap:10px;min-width:0}
+.sec h2{margin:0;font-family:var(--f-display);font-weight:500;font-size:12.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+.drop{display:grid;gap:10px;border:1.5px dashed var(--line);border-radius:12px;padding:14px;transition:border-color .2s,background .2s}
+.drop.over{border-color:var(--lamp);background:rgb(239 184 80 / .07)}
+.picks{display:flex;gap:8px;flex-wrap:wrap}
+.pick{flex:1 1 auto;height:40px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--raised);cursor:pointer;font-weight:600;font-size:14px}
+.pick.primary{background:var(--lamp);color:var(--lamp-ink);border-color:transparent}
+.pick:hover{filter:brightness(1.08)}
+.hint{margin:0;font-size:13px;color:var(--muted);text-align:center}
+.status{margin:0;font-size:14px}
+.status.err{color:#f19a85}
+.fine{margin:0;font-size:12.5px;color:var(--muted)}
+
+.themes{display:grid;gap:8px}
+.theme{display:grid;grid-template-columns:38px minmax(0,1fr);gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:11px;cursor:pointer;transition:border-color .15s,background .15s}
+.theme:hover{border-color:var(--muted)}
+.theme:has(input:checked){border-color:var(--lamp);background:var(--raised)}
+.theme:has(input:focus-visible){outline:2px solid var(--lamp);outline-offset:2px}
+.theme svg{width:38px;height:38px;color:var(--muted)}
+.theme:has(input:checked) svg{color:var(--lamp)}
+.theme b{display:block;font-weight:600;font-size:14.5px}
+.theme small{display:block;color:var(--muted);font-size:12.5px;line-height:1.35}
+.sr{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+
+.field{display:grid;gap:4px}
+.field .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:14px}
+.field output{font-family:var(--f-mono);font-size:13px;color:var(--lamp);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--lamp);margin:4px 0}
+.check{display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer}
+.check input{width:17px;height:17px;accent-color:var(--lamp);margin:0}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:9px;padding:3px;gap:3px}
+.seg label{text-align:center;padding:6px 8px;border-radius:7px;font-size:13.5px;cursor:pointer;color:var(--muted)}
+.seg label:has(input:checked){background:var(--raised);color:var(--fg);box-shadow:inset 0 0 0 1px var(--line)}
+.seg label:has(input:focus-visible){outline:2px solid var(--lamp)}
+.note{font-size:12.5px;color:var(--muted);margin:0}
+
+/* tema: álbum */
+.scene.album{display:grid;place-items:center;background:radial-gradient(ellipse at 50% 38%,#3b2b22,#140e0b 78%)}
+.book{position:relative;z-index:0;height:min(86cqh,61cqw);aspect-ratio:3/2;perspective:2600px}
+.book::before{content:"";position:absolute;inset:-1.8cqh -1.4cqh;background:linear-gradient(160deg,#6b2c25,#3f1814);border-radius:1.2cqh;box-shadow:0 3cqh 6cqh rgb(0 0 0 / .65);z-index:-1}
+.page,.leaf{position:absolute;top:0;bottom:0;width:50%}
+.page.left{left:0}.page.right{left:50%}
+.paper{background-color:#24211d;container-type:size;overflow:hidden}
+.paper.l{background-image:linear-gradient(to left,rgb(0 0 0 / .45),rgb(0 0 0 / 0) 14%),radial-gradient(ellipse at 30% 20%,rgb(255 255 255 / .04),transparent 60%)}
+.paper.r{background-image:linear-gradient(to right,rgb(0 0 0 / .45),rgb(0 0 0 / 0) 14%),radial-gradient(ellipse at 70% 20%,rgb(255 255 255 / .04),transparent 60%)}
+.leaf{transform-style:preserve-3d;z-index:2}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.face.back{transform:rotateY(180deg)}
+.shade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none}
+.spine{position:absolute;left:50%;top:0;bottom:0;width:5%;transform:translateX(-50%);background:linear-gradient(to right,transparent,rgb(0 0 0 / .5),transparent);pointer-events:none;z-index:3}
+.mount{position:absolute;inset:9cqh 10cqw 19cqh;container-type:size;display:grid;place-items:center}
+.photo{position:relative;width:min(100cqw,calc(100cqh * var(--r)));aspect-ratio:var(--r);box-shadow:0 0 0 1.4cqmin #f3ede1,0 1.2cqmin 3cqmin rgb(0 0 0 / .55)}
+.photo img{display:block;width:100%;height:100%;object-fit:cover}
+.tab{position:absolute;width:9cqmin;height:9cqmin;background:#d9cfbb;box-shadow:0 .3cqmin .6cqmin rgb(0 0 0 / .35)}
+.tab.tl{left:-2.8cqmin;top:-2.8cqmin;clip-path:polygon(0 0,100% 0,0 100%)}
+.tab.tr{right:-2.8cqmin;top:-2.8cqmin;clip-path:polygon(0 0,100% 0,100% 100%)}
+.tab.bl{left:-2.8cqmin;bottom:-2.8cqmin;clip-path:polygon(0 0,0 100%,100% 100%)}
+.tab.br{right:-2.8cqmin;bottom:-2.8cqmin;clip-path:polygon(100% 0,0 100%,100% 100%)}
+.paper .cap{position:absolute;left:0;right:0;bottom:7cqh;padding:0 9cqw;text-align:center;font-family:var(--f-hand);font-size:6cqh;line-height:1.1;color:#e6dcc8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.folio{position:absolute;bottom:3cqh;font-family:var(--f-mono);font-size:2.6cqh;color:#7f776a}
+.l .folio{left:6cqw}.r .folio{right:6cqw}
+.end{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--f-hand);font-size:8cqh;color:#7f776a}
+
+/* tema: polaroides */
+.scene.table{background-color:#35261c;background-image:radial-gradient(ellipse at 50% 42%,rgb(255 214 160 / .2),rgb(0 0 0 / .6) 82%),repeating-linear-gradient(91deg,rgb(255 255 255 / .025) 0 2px,transparent 2px 11px),repeating-linear-gradient(90deg,rgb(0 0 0 / .18) 0 1px,transparent 1px 16cqw)}
+.pol{position:absolute;left:50%;top:46%;width:max-content;background:#f6f3ea;padding:2.2cqh 2.2cqh 10cqh;box-shadow:0 1.6cqh 4cqh rgb(0 0 0 / .55);transition:filter .7s}
+.pol.old{filter:brightness(.72) saturate(.85)}
+.pol .pic{width:min(calc(58cqh * var(--r)),52cqw);aspect-ratio:var(--r);background-size:cover;background-position:center}
+.pol .cap{position:absolute;left:0;right:0;bottom:2.6cqh;padding:0 3cqh;text-align:center;font-family:var(--f-hand);font-size:5cqh;line-height:1.1;color:#2b2723;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* tema: cubo */
+.scene.cube{perspective:1800px;background:#000}
+/* tema: mosaico */
+.tile{position:absolute;background-repeat:no-repeat;background-color:#000}
+
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M9 13h15v15H9z"/><path d="M24 17l9-5v17l-9-5"/><circle cx="16.5" cy="20.5" r="3.5"/><path d="M12 13V9h9v4"/></svg>
+      <div>
+        <h1>Lanterna Mágica</h1>
+        <p>Projete uma pasta de fotos com transições de álbum, polaroides, Ken Burns, cubo e mosaico.</p>
+      </div>
+    </div>
+    <div class="keys" aria-label="Atalhos de teclado">
+      <span><kbd>Espaço</kbd> pausa</span><span><kbd>←</kbd> <kbd>→</kbd> navega</span><span><kbd>F</kbd> tela cheia</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="main">
+      <div class="stage" id="stage" aria-label="Apresentação de fotos">
+        <div class="scene" id="scene"></div>
+        <div class="caption" id="caption" hidden></div>
+        <div class="busy-note" id="busyNote" hidden>Convertendo foto HEIC…</div>
+        <div class="hud">
+          <button class="btn" data-act="prev" aria-label="Anterior"></button>
+          <button class="btn play" data-act="play" aria-label="Reproduzir"></button>
+          <button class="btn" data-act="next" aria-label="Próxima"></button>
+          <span class="count" data-count></span>
+          <button class="btn" data-act="fs" aria-label="Sair da tela cheia"></button>
+        </div>
+        <div class="progress" id="progress"></div>
+      </div>
+
+      <div class="bar">
+        <button class="btn" data-act="prev" aria-label="Anterior"></button>
+        <button class="btn play" data-act="play" aria-label="Reproduzir"></button>
+        <button class="btn" data-act="next" aria-label="Próxima"></button>
+        <span class="count" data-count></span>
+        <span class="spacer"></span>
+        <button class="wide" data-act="fs" id="fsBtn"></button>
+      </div>
+
+      <div class="strip" id="strip" aria-label="Fotos carregadas"></div>
+    </section>
+
+    <aside class="panel">
+      <section class="sec">
+        <h2>Fotos</h2>
+        <div class="drop" id="drop">
+          <div class="picks">
+            <button class="pick primary" id="pickDir">Escolher pasta</button>
+            <button class="pick" id="pickFiles">Escolher fotos</button>
+          </div>
+          <p class="hint">ou arraste uma pasta até aqui</p>
+          <input id="dirInput" type="file" webkitdirectory directory multiple hidden>
+          <input id="fileInput" type="file" accept="image/*" multiple hidden>
+        </div>
+        <p class="status" id="status" aria-live="polite"></p>
+        <p class="fine">As fotos são abertas só no seu navegador. Nada é enviado para a internet. Subpastas também entram, em ordem de nome. Aceita HEIC do iPhone; vídeos (.MP4 e .MOV) ficam de fora.</p>
+      </section>
+
+      <section class="sec">
+        <h2>Tema de transição</h2>
+        <div class="themes" role="radiogroup" aria-label="Tema de transição">
+          <label class="theme"><input class="sr" type="radio" name="theme" id="th-album" value="album">
+            <svg viewBox="0 0 38 38" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h14v20H4zM20 10h14v20H20z"/><path d="M19 10c3-3 8-4 12-3v20c-4-1-9 0-12 3"/></svg>
+            <span><b>Álbum de fotos</b><small>Páginas que viram, com cantoneiras e legenda à mão. Duas fotos por página dupla.</small></span></label>
+          <label class="theme"><input class="sr" type="radio" name="theme" id="th-polaroid" value="polaroid">
+            <svg viewBox="0 0 38 38" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M7 9l16-3 3 20-16 3z"/><path d="M14 13h16v21H14z" fill="var(--panel)"/><path d="M16 15h12v12H16z"/></svg>
+            <span><b>Polaroides na mesa</b><small>Cada foto cai sobre a pilha, um pouco torta.</small></span></label>
+          <label class="theme"><input class="sr" type="radio" name="theme" id="th-kenburns" value="kenburns">
+            <svg viewBox="0 0 38 38" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h30v22H4z"/><path d="M12 13h14v12H12z" stroke-dasharray="2.5 2.5"/><path d="M26 25l5 4"/></svg>
+            <span><b>Ken Burns</b><small>Fusão suave com zoom e panorâmica lentos, como em documentário.</small></span></label>
+          <label class="theme"><input class="sr" type="radio" name="theme" id="th-cube" value="cube">
+            <svg viewBox="0 0 38 38" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M5 11l12-4v24L5 27zM17 7l16 4v16l-16 4z"/></svg>
+            <span><b>Cubo 3D</b><small>A foto gira como a face de um cubo.</small></span></label>
+          <label class="theme"><input class="sr" type="radio" name="theme" id="th-mosaic" value="mosaic">
+            <svg viewBox="0 0 38 38" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h8v7H5zM15 8h8v7h-8zM25 8h8v7h-8zM5 17h8v7H5zM15 17h8v7h-8zM5 26h8v6H5z"/><path d="M27 20l4 3-3 4-4-3z"/></svg>
+            <span><b>Mosaico</b><small>A próxima foto se monta em ladrilhos, na diagonal.</small></span></label>
+        </div>
+      </section>
+
+      <section class="sec">
+        <h2>Tempo</h2>
+        <div class="field">
+          <div class="row"><label for="dur">Duração de cada foto</label><output id="durOut" for="dur"></output></div>
+          <input type="range" id="dur" min="1" max="30" step="0.5">
+        </div>
+        <div class="field">
+          <div class="row"><label for="trans">Duração da transição</label><output id="transOut" for="trans"></output></div>
+          <input type="range" id="trans" min="0.3" max="3" step="0.1">
+        </div>
+      </section>
+
+      <section class="sec">
+        <h2>Opções</h2>
+        <label class="check"><input type="checkbox" id="shuffle"> Ordem aleatória</label>
+        <label class="check"><input type="checkbox" id="loop"> Recomeçar ao chegar no fim</label>
+        <label class="check"><input type="checkbox" id="caption"> Mostrar o nome de cada foto</label>
+        <div class="field">
+          <div class="row"><span>Enquadramento</span></div>
+          <div class="seg" role="radiogroup" aria-label="Enquadramento">
+            <label><input class="sr" type="radio" name="fit" id="fit-cover" value="cover">Preencher a tela</label>
+            <label><input class="sr" type="radio" name="fit" id="fit-contain" value="contain">Foto inteira</label>
+          </div>
+          <p class="note">Vale para Ken Burns, Cubo e Mosaico. Álbum e polaroides sempre mostram a foto inteira.</p>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const stage = $('#stage'), scene = $('#scene'), capEl = $('#caption'), prog = $('#progress'), strip = $('#strip');
+
+const ICON = {
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>',
+  prev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  next: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
+  expand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+  shrink: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>'
+};
+$$('[data-act="prev"]').forEach(b => b.innerHTML = ICON.prev);
+$$('[data-act="next"]').forEach(b => b.innerHTML = ICON.next);
+
+const S = { items: [], order: [], idx: 0, playing: false, busy: false, timer: 0, progAnim: null, pending: null,
+  theme: 'album', dur: 5, trans: 1.4, shuffle: false, loop: true, caption: true, fit: 'cover' };
+const KEYS = ['theme', 'dur', 'trans', 'shuffle', 'loop', 'caption', 'fit'];
+try { const saved = JSON.parse(localStorage.getItem('lanterna-magica') || '{}'); KEYS.forEach(k => { if (k in saved) S[k] = saved[k]; }); } catch {}
+const save = () => { try { localStorage.setItem('lanterna-magica', JSON.stringify(Object.fromEntries(KEYS.map(k => [k, S[k]])))); } catch {} };
+
+const n = () => S.order.length;
+const at = k => (k >= 0 && k < n()) ? S.items[S.order[k]] : null;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pretty = name => name.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').replace(/^(\d+)-/, '$1 · ').trim();
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const anim = (el, kf, opt) => el.animate(kf, { fill: 'both', ...opt }).finished.catch(() => {});
+
+function tryImg(url) {
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => (im.decode ? im.decode() : Promise.resolve()).catch(() => {}).then(() => res(im));
+    im.onerror = () => res(null);
+    im.src = url;
+  });
+}
+/* HEIC: o Safari abre direto; nos outros navegadores convertemos com heic2any, carregado só quando precisa. */
+let heicLib = null, heicQueue = Promise.resolve(), heicBusy = 0;
+function loadHeic() {
+  return heicLib || (heicLib = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+    s.onload = () => res(window.heic2any);
+    s.onerror = () => { heicLib = null; rej(new Error('heic2any')); };
+    document.head.append(s);
+  }));
+}
+function convertHeic(it) {
+  const job = heicQueue.then(async () => {
+    $('#busyNote').hidden = !++heicBusy;
+    try {
+      const heic2any = await loadHeic();
+      let out = await heic2any({ blob: it.file, toType: 'image/jpeg', quality: .9 });
+      if (Array.isArray(out)) out = out[0];
+      URL.revokeObjectURL(it.url);
+      it.url = URL.createObjectURL(out);
+      $$(`.thumb[data-oi="${it.oi}"]`).forEach(t => { t.classList.remove('wait'); $('img', t).src = it.url; });
+    } catch (e) { console.warn('HEIC', it.name, e); }
+    finally { $('#busyNote').hidden = !--heicBusy; }
+  });
+  heicQueue = job;
+  return job;
+}
+function preload(it) {
+  if (!it) return Promise.resolve(null);
+  if (!it.p) it.p = (async () => {
+    let im = await tryImg(it.url);
+    if (!im && it.file && HEIC.test(it.name)) { await convertHeic(it); im = await tryImg(it.url); }
+    if (im) it.r = im.naturalWidth / im.naturalHeight || 1.5;
+    else { it.r = 1.5; it.bad = true; }
+    return it;
+  })();
+  return it.p;
+}
+
+function layer(it) {
+  const d = document.createElement('div');
+  d.className = 'layer';
+  if (it) { d.style.backgroundImage = `url("${it.url}")`; d.style.backgroundSize = S.fit; }
+  return d;
+}
+function drift(d, ms) {
+  if (reduced) return;
+  const inward = Math.random() < .5;
+  const x = (Math.random() * 6 - 3).toFixed(2), y = (Math.random() * 4 - 2).toFixed(2);
+  const near = `scale(1.14) translate(${x}%,${y}%)`, far = 'scale(1.02) translate(0,0)';
+  d.animate([{ transform: inward ? far : near }, { transform: inward ? near : far }],
+    { duration: S.dur * 1000 + ms * 2, easing: 'linear', fill: 'forwards' });
+}
+function fitRect(r, W, H) {
+  let w, h;
+  if ((W / H > r) === (S.fit === 'cover')) { w = W; h = W / r; } else { h = H; w = H * r; }
+  return { w, h, x: (W - w) / 2, y: (H - h) / 2 };
+}
+function fillPage(el, k) {
+  const it = at(k);
+  if (!it) { el.innerHTML = `<div class="end">${n() ? 'fim' : ''}</div>`; return; }
+  el.innerHTML = `<div class="mount"><div class="photo" style="--r:${it.r || 1.5}"><img src="${it.url}" alt=""><i class="tab tl"></i><i class="tab tr"></i><i class="tab bl"></i><i class="tab br"></i></div></div>`
+    + (S.caption ? `<div class="cap">${esc(pretty(it.name))}</div>` : '') + `<div class="folio">${k + 1}</div>`;
+}
+
+const THEMES = {
+  album: {
+    step: 2,
+    mount() { scene.className = 'scene album'; scene.innerHTML = '<div class="book"><div class="page left paper l"></div><div class="page right paper r"></div><div class="spine"></div></div>'; },
+    async show(k) { await Promise.all([preload(at(k)), preload(at(k + 1))]); fillPage($('.page.left', scene), k); fillPage($('.page.right', scene), k + 1); },
+    async go(from, to, dir, ms) {
+      await Promise.all([preload(at(to)), preload(at(to + 1))]);
+      const book = $('.book', scene), L = $('.page.left', scene), R = $('.page.right', scene);
+      const leaf = document.createElement('div');
+      leaf.className = 'leaf';
+      leaf.innerHTML = '<div class="face paper"></div><div class="face back paper"></div>';
+      const [front, back] = leaf.children;
+      if (dir > 0) {
+        leaf.style.left = '50%'; leaf.style.transformOrigin = '0 50%';
+        front.classList.add('r'); back.classList.add('l');
+        fillPage(front, from + 1); fillPage(back, to); fillPage(R, to + 1);
+      } else {
+        leaf.style.left = '0'; leaf.style.transformOrigin = '100% 50%';
+        front.classList.add('l'); back.classList.add('r');
+        fillPage(front, from); fillPage(back, to + 1); fillPage(L, to);
+      }
+      const fs = document.createElement('i'), bs = document.createElement('i');
+      fs.className = bs.className = 'shade';
+      front.append(fs); back.append(bs);
+      book.insertBefore(leaf, $('.spine', book));
+      const s = dir > 0 ? -1 : 1, o = { duration: ms, easing: 'cubic-bezier(.45,.05,.35,1)' };
+      await Promise.all([
+        anim(leaf, [{ transform: 'rotateY(0deg)' }, { transform: `rotateY(${180 * s}deg)` }], o),
+        anim(fs, [{ opacity: 0 }, { opacity: .55 }], o),
+        anim(bs, [{ opacity: .55 }, { opacity: 0 }], o)
+      ]);
+      if (dir > 0) fillPage(L, to); else fillPage(R, to + 1);
+      leaf.remove();
+    }
+  },
+  polaroid: {
+    step: 1,
+    mount() { scene.className = 'scene table'; scene.innerHTML = ''; },
+    async show(k) { scene.innerHTML = ''; for (let i = Math.max(0, k - 3); i <= k; i++) await this.drop(i, 0); },
+    async go(from, to, dir, ms) {
+      const top = scene.lastElementChild, under = top && top.previousElementSibling;
+      if (dir < 0 && under && +under.dataset.k === to) {
+        under.classList.remove('old');
+        await anim(top, [{ transform: top.dataset.t, opacity: 1 }, { transform: top.dataset.t + ' translate(0,-45cqh) rotate(-24deg)', opacity: 0 }], { duration: ms * .8, easing: 'cubic-bezier(.5,0,.8,.4)' });
+        top.remove();
+        return;
+      }
+      await this.drop(to, ms);
+    },
+    async drop(k, ms) {
+      const it = await preload(at(k));
+      if (!it) return;
+      const p = document.createElement('div');
+      p.className = 'pol'; p.dataset.k = k;
+      const dx = +(Math.random() * 26 - 13).toFixed(1), dy = +(Math.random() * 10 - 5).toFixed(1), rot = +(Math.random() * 14 - 7).toFixed(1);
+      const t = `translate(-50%,-50%) translate(${dx}cqw,${dy}cqh) rotate(${rot}deg)`;
+      p.dataset.t = t; p.style.transform = t;
+      p.innerHTML = `<div class="pic" style="--r:${it.r};background-image:url('${it.url}')"></div>` + (S.caption ? `<div class="cap">${esc(pretty(it.name))}</div>` : '');
+      [...scene.children].forEach(c => c.classList.add('old'));
+      scene.append(p);
+      while (scene.children.length > 7) scene.firstElementChild.remove();
+      if (ms) await anim(p, [
+        { transform: `translate(-50%,-50%) translate(${dx * 1.6}cqw,${dy - 40}cqh) rotate(${rot * 3}deg) scale(1.35)`, opacity: 0 },
+        { opacity: 1, offset: .35 },
+        { transform: t, opacity: 1 }
+      ], { duration: ms, easing: 'cubic-bezier(.2,.7,.25,1)' });
+    }
+  },
+  kenburns: {
+    step: 1,
+    mount() { scene.className = 'scene kb'; scene.innerHTML = ''; },
+    async show(k) { const it = await preload(at(k)); scene.innerHTML = ''; const d = layer(it); scene.append(d); drift(d, S.trans * 1000); },
+    async go(from, to, dir, ms) {
+      const d = layer(at(to));
+      scene.append(d); drift(d, ms);
+      await anim(d, [{ opacity: 0 }, { opacity: 1 }], { duration: ms, easing: 'ease-in-out' });
+      [...scene.children].forEach(c => c !== d && c.remove());
+    }
+  },
+  cube: {
+    step: 1,
+    mount() { scene.className = 'scene cube'; scene.innerHTML = ''; },
+    async show(k) { const it = await preload(at(k)); scene.innerHTML = ''; scene.append(layer(it)); },
+    async go(from, to, dir, ms) {
+      const old = scene.lastElementChild, d = layer(at(to)), s = dir > 0 ? 1 : -1;
+      scene.append(d);
+      if (old) old.style.transformOrigin = s > 0 ? '100% 50%' : '0% 50%';
+      d.style.transformOrigin = s > 0 ? '0% 50%' : '100% 50%';
+      const o = { duration: ms, easing: 'cubic-bezier(.55,.05,.3,1)' };
+      await Promise.all([
+        old && anim(old, [{ transform: 'translateX(0) rotateY(0deg)', filter: 'brightness(1)' }, { transform: `translateX(${-100 * s}%) rotateY(${-90 * s}deg)`, filter: 'brightness(.3)' }], o),
+        anim(d, [{ transform: `translateX(${100 * s}%) rotateY(${90 * s}deg)`, filter: 'brightness(.3)' }, { transform: 'translateX(0) rotateY(0deg)', filter: 'brightness(1)' }], o)
+      ]);
+      if (old) old.remove();
+    }
+  },
+  mosaic: {
+    step: 1,
+    mount() { scene.className = 'scene mosaic'; scene.innerHTML = ''; },
+    async show(k) { const it = await preload(at(k)); scene.innerHTML = ''; scene.append(layer(it)); },
+    async go(from, to, dir, ms) {
+      const it = await preload(at(to));
+      const W = scene.clientWidth, H = scene.clientHeight, f = fitRect(it.r, W, H);
+      const cols = W < 600 ? 6 : 10, rows = Math.max(3, Math.round(cols * H / W)), tw = W / cols, th = H / rows;
+      const box = document.createElement('div');
+      box.className = 'layer';
+      const jobs = [];
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const t = document.createElement('div'), x = c * tw, y = r * th;
+        t.className = 'tile';
+        Object.assign(t.style, {
+          left: x + 'px', top: y + 'px', width: Math.ceil(tw) + 1 + 'px', height: Math.ceil(th) + 1 + 'px', opacity: 0,
+          backgroundImage: `url("${it.url}")`, backgroundSize: `${f.w}px ${f.h}px`, backgroundPosition: `${f.x - x}px ${f.y - y}px`
+        });
+        const d = (dir > 0 ? c / cols + r / rows : (cols - 1 - c) / cols + (rows - 1 - r) / rows) / 2 + Math.random() * .08;
+        box.append(t); jobs.push([t, Math.min(d, 1)]);
+      }
+      scene.append(box);
+      const tileMs = ms * .45, spread = ms - tileMs;
+      await Promise.all(jobs.map(([t, d]) => anim(t,
+        [{ opacity: 0, transform: `scale(.2) rotate(${dir * -25}deg)` }, { opacity: 1, transform: 'none' }],
+        { duration: tileMs, delay: d * spread, easing: 'cubic-bezier(.2,.8,.3,1)' })));
+      scene.innerHTML = '';
+      scene.append(layer(it));
+    }
+  }
+};
+let theme = THEMES[S.theme] || (S.theme = 'album', THEMES.album);
+
+/* ---------- motor ---------- */
+async function applyTheme(name) {
+  S.theme = name; theme = THEMES[name]; save();
+  theme.mount();
+  if (n()) await theme.show(S.idx);
+  ui(); schedule();
+}
+async function rerender() {
+  if (S.busy) { S.pending = S.theme; return; }
+  if (n()) await theme.show(S.idx);
+  ui();
+}
+async function goTo(j, dir) {
+  if (!n() || S.busy || j === S.idx) return;
+  S.busy = true; clearTimeout(S.timer); stopProg();
+  try { await theme.go(S.idx, j, dir, S.trans * 1000 * (reduced ? .5 : 1)); S.idx = j; }
+  catch (e) { console.error(e); S.idx = j; await theme.show(j); }
+  S.busy = false;
+  if (S.pending) { const p = S.pending; S.pending = null; await applyTheme(p); }
+  else { ui(); schedule(); }
+  preload(at(j + theme.step)); preload(at(j + theme.step + 1));
+}
+function next() {
+  let j = S.idx + theme.step;
+  if (j >= n()) { if (!S.loop) { pause(); return; } j = 0; }
+  goTo(j, 1);
+}
+function prev() {
+  let j = S.idx - theme.step;
+  if (j < 0) j = S.idx > 0 ? 0 : Math.floor((n() - 1) / theme.step) * theme.step;
+  goTo(j, -1);
+}
+function stopProg() { if (S.progAnim) S.progAnim.cancel(); S.progAnim = null; }
+function schedule() {
+  clearTimeout(S.timer); stopProg();
+  if (!S.playing || S.busy || n() < 2) return;
+  const ms = S.dur * 1000;
+  S.progAnim = prog.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: ms, easing: 'linear', fill: 'forwards' });
+  S.timer = setTimeout(next, ms);
+}
+function play() {
+  if (n() < 2) return;
+  S.playing = true; ui();
+  if (!S.loop && S.idx + theme.step >= n()) goTo(0, 1); else schedule();
+}
+function pause() { S.playing = false; clearTimeout(S.timer); stopProg(); ui(); }
+const toggle = () => S.playing ? pause() : play();
+
+function setOrder(keepCurrent) {
+  const cur = S.order[S.idx];
+  S.order = S.items.map((_, i) => i);
+  if (S.shuffle) {
+    for (let i = S.order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [S.order[i], S.order[j]] = [S.order[j], S.order[i]]; }
+    if (keepCurrent && cur != null) { S.order.splice(S.order.indexOf(cur), 1); S.order.unshift(cur); }
+  }
+  S.idx = keepCurrent && cur != null ? Math.max(0, S.order.indexOf(cur)) : 0;
+}
+function buildStrip() {
+  const frag = document.createDocumentFragment();
+  S.order.forEach((oi, k) => {
+    const it = S.items[oi], b = document.createElement('button');
+    b.className = 'thumb'; b.dataset.k = k; b.dataset.oi = oi;
+    b.setAttribute('aria-label', `Ir para a foto ${k + 1}: ${pretty(it.name)}`);
+    b.innerHTML = `<img loading="lazy" decoding="async" alt="" src="${it.url}">`;
+    $('img', b).onerror = () => { if (HEIC.test(it.name) && !it.bad) { b.classList.add('wait'); b.append('HEIC'); } };
+    frag.append(b);
+  });
+  strip.innerHTML = ''; strip.append(frag);
+}
+function ui() {
+  const N = n(), st = theme.step, a = S.idx + 1, b = Math.min(N, S.idx + st);
+  const label = !N ? '0 fotos' : (b > a ? `${a}–${b} de ${N}` : `${a} de ${N}`);
+  $$('[data-count]').forEach(e => e.textContent = label);
+  $$('[data-act="play"]').forEach(btn => { btn.innerHTML = S.playing ? ICON.pause : ICON.play; btn.setAttribute('aria-label', S.playing ? 'Pausar' : 'Reproduzir'); });
+  const it = at(S.idx), showCap = S.caption && it && !['album', 'polaroid'].includes(S.theme);
+  capEl.hidden = !showCap;
+  if (showCap) capEl.textContent = pretty(it.name);
+  [...strip.children].forEach((t, i) => t.classList.toggle('on', i >= S.idx && i < S.idx + st));
+  const on = strip.children[S.idx];
+  if (on) strip.scrollTo({ left: on.offsetLeft - strip.clientWidth / 2 + on.clientWidth / 2, behavior: reduced ? 'auto' : 'smooth' });
+}
+function setStatus(msg, err) { const s = $('#status'); s.textContent = msg; s.classList.toggle('err', !!err); }
+
+/* ---------- arquivos ---------- */
+const OK = /\.(jpe?g|jfif|png|gif|webp|avif|bmp|svg|heic|heif)$/i, HEIC = /\.(heic|heif)$/i, VIDEO = /\.(mp4|mov|m4v|3gp)$/i;
+const pathOf = f => f.relPath || f.webkitRelativePath || f.name;
+async function loadFiles(files, label) {
+  const list = [...files];
+  const videos = list.filter(f => VIDEO.test(f.name) || f.type.startsWith('video/')).length;
+  const imgs = list.filter(f => !/^\./.test(f.name) && (OK.test(f.name) || f.type.startsWith('image/')));
+  const skipped = !videos ? '' : videos > 1
+    ? ` ${videos} vídeos ficaram de fora: no iPhone, quase sempre são a parte animada das Live Photos.`
+    : ' 1 vídeo ficou de fora: no iPhone, quase sempre é a parte animada de uma Live Photo.';
+  if (!imgs.length) {
+    setStatus(`Nenhuma foto encontrada nessa seleção.${skipped} Escolha outra pasta.`, true);
+    return;
+  }
+  imgs.sort((a, b) => pathOf(a).localeCompare(pathOf(b), undefined, { numeric: true, sensitivity: 'base' }));
+  pause();
+  while (S.busy) await wait(50);
+  S.items.forEach(it => it.url.startsWith('blob:') && URL.revokeObjectURL(it.url));
+  S.items = imgs.map((f, oi) => ({ name: f.name, url: URL.createObjectURL(f), file: f, oi }));
+  S.order = []; S.idx = 0;
+  setOrder(false); buildStrip();
+  const folder = label || (pathOf(imgs[0]).includes('/') ? pathOf(imgs[0]).split('/')[0] : 'sua seleção');
+  setStatus(`${imgs.length} foto${imgs.length > 1 ? 's' : ''} de “${folder}”.${skipped}`);
+  theme.mount();
+  await theme.show(0);
+  ui();
+  preload(at(1)); preload(at(2)); preload(at(3));
+}
+async function walk(entry, out) {
+  if (entry.isFile) {
+    await new Promise(r => entry.file(f => { f.relPath = entry.fullPath.replace(/^\//, ''); out.push(f); r(); }, () => r()));
+  } else if (entry.isDirectory) {
+    const rd = entry.createReader();
+    let batch;
+    do {
+      batch = await new Promise(r => rd.readEntries(r, () => r([])));
+      for (const e of batch) await walk(e, out);
+    } while (batch.length);
+  }
+}
+
+$('#pickDir').onclick = () => $('#dirInput').click();
+$('#pickFiles').onclick = () => $('#fileInput').click();
+['#dirInput', '#fileInput'].forEach(id => $(id).addEventListener('change', e => { if (e.target.files.length) loadFiles(e.target.files); e.target.value = ''; }));
+
+const drop = $('#drop');
+let dragDepth = 0;
+document.addEventListener('dragenter', e => { if (e.dataTransfer?.types?.includes('Files')) { dragDepth++; drop.classList.add('over'); } });
+document.addEventListener('dragleave', () => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) drop.classList.remove('over'); });
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', async e => {
+  e.preventDefault(); dragDepth = 0; drop.classList.remove('over');
+  const entries = [...(e.dataTransfer.items || [])].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  const plain = e.dataTransfer.files;
+  if (entries.length) {
+    setStatus('Lendo a pasta…');
+    const out = [];
+    for (const en of entries) await walk(en, out);
+    loadFiles(out, entries.length === 1 && entries[0].isDirectory ? entries[0].name : null);
+  } else if (plain && plain.length) loadFiles(plain);
+});
+
+/* ---------- tela cheia ---------- */
+const isFs = () => document.fullscreenElement === stage || document.webkitFullscreenElement === stage || stage.classList.contains('pseudo-fs');
+async function enterFs() {
+  const fn = stage.requestFullscreen || stage.webkitRequestFullscreen;
+  let ok = false;
+  if (fn) { try { await fn.call(stage); ok = !!(document.fullscreenElement || document.webkitFullscreenElement); } catch {} }
+  if (!ok) { stage.classList.add('pseudo-fs'); document.documentElement.classList.add('noscroll'); }
+  fsUI();
+  try { if (navigator.wakeLock) S.wl = await navigator.wakeLock.request('screen'); } catch {}
+  if (!S.playing) play();
+}
+function exitFs() {
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  else if (document.webkitFullscreenElement) document.webkitExitFullscreen();
+  stage.classList.remove('pseudo-fs');
+  document.documentElement.classList.remove('noscroll');
+  if (S.wl) { S.wl.release().catch(() => {}); S.wl = null; }
+  fsUI();
+}
+const toggleFs = () => isFs() ? exitFs() : enterFs();
+function fsUI() {
+  const on = isFs();
+  stage.classList.toggle('fs', on);
+  $('#fsBtn').innerHTML = on ? `${ICON.shrink} Sair da tela cheia` : `${ICON.expand} Tela cheia`;
+  $$('.hud [data-act="fs"]').forEach(b => b.innerHTML = ICON.shrink);
+  if (on) wake(); else stage.classList.remove('awake', 'idle');
+}
+function wake() {
+  stage.classList.add('awake'); stage.classList.remove('idle');
+  clearTimeout(S.idleT);
+  S.idleT = setTimeout(() => { if (isFs()) { stage.classList.remove('awake'); stage.classList.add('idle'); } }, 2600);
+}
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && S.wl) { S.wl.release().catch(() => {}); S.wl = null; } fsUI(); });
+document.addEventListener('webkitfullscreenchange', fsUI);
+stage.addEventListener('pointermove', () => { if (isFs()) wake(); });
+stage.addEventListener('click', e => {
+  if (e.target.closest('.hud')) return;
+  if (isFs()) wake(); else toggle();
+});
+stage.addEventListener('dblclick', e => { if (!e.target.closest('.hud')) toggleFs(); });
+
+/* ---------- controles ---------- */
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-act]');
+  if (a) { const act = a.dataset.act; if (act === 'prev') prev(); else if (act === 'next') next(); else if (act === 'play') toggle(); else if (act === 'fs') toggleFs(); return; }
+  const t = e.target.closest('.thumb');
+  if (t) { const k = +t.dataset.k; goTo(k, k > S.idx ? 1 : -1); }
+});
+document.addEventListener('keydown', e => {
+  const tag = e.target.tagName, inField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  if (e.key === ' ' && !inField && tag !== 'BUTTON') { e.preventDefault(); toggle(); }
+  else if (e.key === 'ArrowRight' && !inField) { e.preventDefault(); next(); }
+  else if (e.key === 'ArrowLeft' && !inField) { e.preventDefault(); prev(); }
+  else if ((e.key === 'f' || e.key === 'F') && !inField && !e.metaKey && !e.ctrlKey) toggleFs();
+  else if (e.key === 'Escape' && stage.classList.contains('pseudo-fs')) exitFs();
+});
+
+const dur = $('#dur'), trans = $('#trans');
+const showDur = () => $('#durOut').textContent = `${String(S.dur).replace('.', ',')} s`;
+const showTrans = () => $('#transOut').textContent = `${S.trans.toFixed(1).replace('.', ',')} s`;
+dur.value = S.dur; trans.value = S.trans; showDur(); showTrans();
+dur.addEventListener('input', () => { S.dur = +dur.value; showDur(); save(); schedule(); });
+trans.addEventListener('input', () => { S.trans = +trans.value; showTrans(); save(); });
+
+$(`#th-${S.theme}`).checked = true;
+$$('input[name="theme"]').forEach(r => r.addEventListener('change', () => { if (S.busy) S.pending = r.value; else applyTheme(r.value); }));
+$(`#fit-${S.fit}`).checked = true;
+$$('input[name="fit"]').forEach(r => r.addEventListener('change', () => { S.fit = r.value; save(); if (['kenburns', 'cube', 'mosaic'].includes(S.theme)) rerender(); }));
+
+const shuffle = $('#shuffle'), loop = $('#loop'), caption = $('#caption');
+shuffle.checked = S.shuffle; loop.checked = S.loop; caption.checked = S.caption;
+shuffle.addEventListener('change', async () => {
+  S.shuffle = shuffle.checked; save();
+  while (S.busy) await wait(50);
+  setOrder(true); buildStrip(); rerender();
+});
+loop.addEventListener('change', () => { S.loop = loop.checked; save(); });
+caption.addEventListener('change', () => { S.caption = caption.checked; save(); rerender(); });
+
+/* ---------- fotos de exemplo ---------- */
+function mix(a, b, t) {
+  const p = x => [1, 3, 5].map(i => parseInt(x.slice(i, i + 2), 16));
+  const A = p(a), B = p(b);
+  return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+function paint([sky, mid, deep], w, h, seed) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  let s = seed * 7919 + 104729;
+  const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+  const sk = g.createLinearGradient(0, 0, 0, h * .75);
+  sk.addColorStop(0, mix(deep, sky, .3)); sk.addColorStop(1, sky);
+  g.fillStyle = sk; g.fillRect(0, 0, w, h);
+  const sx = w * (.2 + rnd() * .6), sy = h * (.2 + rnd() * .18), sr = Math.min(w, h) * (.05 + rnd() * .04);
+  const glow = g.createRadialGradient(sx, sy, 0, sx, sy, sr * 6);
+  glow.addColorStop(0, 'rgba(255,250,235,.55)'); glow.addColorStop(1, 'rgba(255,250,235,0)');
+  g.fillStyle = glow; g.fillRect(0, 0, w, h);
+  g.fillStyle = mix(sky, '#ffffff', .65); g.beginPath(); g.arc(sx, sy, sr, 0, Math.PI * 2); g.fill();
+  const layers = 5;
+  for (let L = 0; L < layers; L++) {
+    const t = L / (layers - 1), base = h * (.48 + t * .4), amp = h * (.13 - t * .07);
+    const f1 = 1 + rnd() * 2, f2 = 3 + rnd() * 4, p1 = rnd() * 6, p2 = rnd() * 6;
+    g.fillStyle = mix(mix(sky, mid, .55), deep, .1 + t * .9);
+    g.beginPath(); g.moveTo(0, h);
+    for (let x = 0; x <= w + 1; x += w / 180) {
+      const u = x / w;
+      g.lineTo(x, base - amp * (.6 * Math.sin(u * Math.PI * f1 + p1) + .3 * Math.sin(u * Math.PI * f2 + p2) + .1 * Math.sin(u * Math.PI * 19 + p1)));
+    }
+    g.lineTo(w, h); g.closePath(); g.fill();
+  }
+  return c.toDataURL('image/jpeg', .85);
+}
+function samples() {
+  const specs = [
+    ['Amanhecer na serra', ['#ffd6a0', '#f08a5d', '#40375c'], 1600, 1067],
+    ['Lago azul', ['#cfe8ef', '#5aa0c8', '#1d3557'], 1600, 1067],
+    ['Fim de tarde', ['#ffb38a', '#d1495b', '#2b193d'], 1000, 1300],
+    ['Neblina', ['#e6e8e3', '#9aa7a0', '#3e4a47'], 1600, 1067],
+    ['Noite de lua', ['#6a6aa8', '#2a3766', '#0b1020'], 1600, 1067],
+    ['Dunas', ['#ffe3b3', '#e09f5a', '#6b3e26'], 1000, 1300],
+    ['Primavera', ['#f7d6e0', '#8fc0a9', '#2e5c49'], 1600, 1067]
+  ];
+  return specs.map(([title, pal, w, h], i) => ({ name: `${String(i + 1).padStart(2, '0')}-Exemplo, ${title}.jpg`, url: paint(pal, w, h, i + 1) }));
+}
+
+S.items = samples();
+setOrder(false); buildStrip(); fsUI();
+setStatus('Mostrando 7 fotos de exemplo. Escolha uma pasta para ver as suas.');
+applyTheme(S.theme);
+</script>
+</body>
+</html>
