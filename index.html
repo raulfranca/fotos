@@ -54,7 +54,6 @@ kbd{font-family:var(--f-mono);font-size:11.5px;border:1px solid var(--line);bord
 .stage.fs.idle{cursor:none}
 .scene{position:absolute;inset:0;container-type:size;overflow:hidden}
 .layer{position:absolute;inset:0;background-position:center;background-repeat:no-repeat;will-change:transform,opacity}
-.caption{position:absolute;left:max(18px,env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));max-width:70%;font-weight:500;font-size:clamp(13px,1.6vw,20px);color:#fff;text-shadow:0 1px 12px rgb(0 0 0 / .8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
 .busy-note{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));padding:6px 12px;border-radius:999px;background:rgb(10 10 12 / .7);color:#eee;font-size:13px;pointer-events:none;z-index:5}
 .thumb.wait{display:grid;place-items:center;font-family:var(--f-mono);font-size:11px;color:var(--muted)}
 .thumb.wait img{display:none}
@@ -125,8 +124,8 @@ input[type=range]{width:100%;accent-color:var(--lamp);margin:4px 0}
 
 /* tema: álbum */
 .scene.album{display:grid;place-items:center;background:radial-gradient(ellipse at 50% 38%,#3b2b22,#140e0b 78%)}
-.book{position:relative;z-index:0;height:min(86cqh,61cqw);aspect-ratio:3/2;perspective:2600px}
-.book::before{content:"";position:absolute;inset:-1.8cqh -1.4cqh;background:linear-gradient(160deg,#6b2c25,#3f1814);border-radius:1.2cqh;box-shadow:0 3cqh 6cqh rgb(0 0 0 / .65);z-index:-1}
+.book{position:relative;z-index:0;width:calc(100cqw - 3.6cqmin);height:calc(100cqh - 3.6cqmin);perspective:2600px}
+.book::before{content:"";position:absolute;inset:-1.2cqmin;background:linear-gradient(160deg,#6b2c25,#3f1814);border-radius:1cqmin;box-shadow:0 1cqh 3cqh rgb(0 0 0 / .65);z-index:-1}
 .page,.leaf{position:absolute;top:0;bottom:0;width:50%}
 .page.left{left:0}.page.right{left:50%}
 .paper{background-color:#24211d;container-type:size;overflow:hidden}
@@ -137,7 +136,7 @@ input[type=range]{width:100%;accent-color:var(--lamp);margin:4px 0}
 .face.back{transform:rotateY(180deg)}
 .shade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none}
 .spine{position:absolute;left:50%;top:0;bottom:0;width:5%;transform:translateX(-50%);background:linear-gradient(to right,transparent,rgb(0 0 0 / .5),transparent);pointer-events:none;z-index:3}
-.mount{position:absolute;inset:9cqh 10cqw 19cqh;container-type:size;display:grid;place-items:center}
+.mount{position:absolute;inset:4cqmin;container-type:size;display:grid;place-items:center}
 .photo{position:relative;width:min(100cqw,calc(100cqh * var(--r)));aspect-ratio:var(--r);box-shadow:0 0 0 1.4cqmin #f3ede1,0 1.2cqmin 3cqmin rgb(0 0 0 / .55)}
 .photo img{display:block;width:100%;height:100%;object-fit:cover}
 .tab{position:absolute;width:9cqmin;height:9cqmin;background:#d9cfbb;box-shadow:0 .3cqmin .6cqmin rgb(0 0 0 / .35)}
@@ -145,17 +144,15 @@ input[type=range]{width:100%;accent-color:var(--lamp);margin:4px 0}
 .tab.tr{right:-2.8cqmin;top:-2.8cqmin;clip-path:polygon(0 0,100% 0,100% 100%)}
 .tab.bl{left:-2.8cqmin;bottom:-2.8cqmin;clip-path:polygon(0 0,0 100%,100% 100%)}
 .tab.br{right:-2.8cqmin;bottom:-2.8cqmin;clip-path:polygon(100% 0,0 100%,100% 100%)}
-.paper .cap{position:absolute;left:0;right:0;bottom:7cqh;padding:0 9cqw;text-align:center;font-family:var(--f-hand);font-size:6cqh;line-height:1.1;color:#e6dcc8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.folio{position:absolute;bottom:3cqh;font-family:var(--f-mono);font-size:2.6cqh;color:#7f776a}
-.l .folio{left:6cqw}.r .folio{right:6cqw}
+.folio{position:absolute;bottom:.6cqmin;font-family:var(--f-mono);font-size:2cqmin;color:#7f776a}
+.l .folio{left:1.6cqmin}.r .folio{right:1.6cqmin}
 .end{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--f-hand);font-size:8cqh;color:#7f776a}
 
 /* tema: polaroides */
 .scene.table{background-color:#35261c;background-image:radial-gradient(ellipse at 50% 42%,rgb(255 214 160 / .2),rgb(0 0 0 / .6) 82%),repeating-linear-gradient(91deg,rgb(255 255 255 / .025) 0 2px,transparent 2px 11px),repeating-linear-gradient(90deg,rgb(0 0 0 / .18) 0 1px,transparent 1px 16cqw)}
-.pol{position:absolute;left:50%;top:46%;width:max-content;background:#f6f3ea;padding:2.2cqh 2.2cqh 10cqh;box-shadow:0 1.6cqh 4cqh rgb(0 0 0 / .55);transition:filter .7s}
+.pol{position:absolute;left:50%;top:50%;width:max-content;background:#f6f3ea;padding:2cqh 2cqh 7cqh;box-shadow:0 1.6cqh 4cqh rgb(0 0 0 / .55);transition:filter .7s}
 .pol.old{filter:brightness(.72) saturate(.85)}
-.pol .pic{width:min(calc(58cqh * var(--r)),52cqw);aspect-ratio:var(--r);background-size:cover;background-position:center}
-.pol .cap{position:absolute;left:0;right:0;bottom:2.6cqh;padding:0 3cqh;text-align:center;font-family:var(--f-hand);font-size:5cqh;line-height:1.1;color:#2b2723;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pol .pic{width:min(calc(76cqh * var(--r)),70cqw);aspect-ratio:var(--r);background-size:cover;background-position:center}
 
 /* tema: cubo */
 .scene.cube{perspective:1800px;background:#000}
@@ -184,7 +181,6 @@ input[type=range]{width:100%;accent-color:var(--lamp);margin:4px 0}
     <section class="main">
       <div class="stage" id="stage" aria-label="Apresentação de fotos">
         <div class="scene" id="scene"></div>
-        <div class="caption" id="caption" hidden></div>
         <div class="busy-note" id="busyNote" hidden>Convertendo foto HEIC…</div>
         <div class="hud">
           <button class="btn" data-act="prev" aria-label="Anterior"></button>
@@ -229,7 +225,7 @@ input[type=range]{width:100%;accent-color:var(--lamp);margin:4px 0}
         <div class="themes" role="radiogroup" aria-label="Tema de transição">
           <label class="theme"><input class="sr" type="radio" name="theme" id="th-album" value="album">
             <svg viewBox="0 0 38 38" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h14v20H4zM20 10h14v20H20z"/><path d="M19 10c3-3 8-4 12-3v20c-4-1-9 0-12 3"/></svg>
-            <span><b>Álbum de fotos</b><small>Páginas que viram, com cantoneiras e legenda à mão. Duas fotos por página dupla.</small></span></label>
+            <span><b>Álbum de fotos</b><small>Páginas que viram, com cantoneiras. Duas fotos por página dupla.</small></span></label>
           <label class="theme"><input class="sr" type="radio" name="theme" id="th-polaroid" value="polaroid">
             <svg viewBox="0 0 38 38" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M7 9l16-3 3 20-16 3z"/><path d="M14 13h16v21H14z" fill="var(--panel)"/><path d="M16 15h12v12H16z"/></svg>
             <span><b>Polaroides na mesa</b><small>Cada foto cai sobre a pilha, um pouco torta.</small></span></label>
@@ -261,7 +257,6 @@ input[type=range]{width:100%;accent-color:var(--lamp);margin:4px 0}
         <h2>Opções</h2>
         <label class="check"><input type="checkbox" id="shuffle"> Ordem aleatória</label>
         <label class="check"><input type="checkbox" id="loop"> Recomeçar ao chegar no fim</label>
-        <label class="check"><input type="checkbox" id="caption"> Mostrar o nome de cada foto</label>
         <div class="field">
           <div class="row"><span>Enquadramento</span></div>
           <div class="seg" role="radiogroup" aria-label="Enquadramento">
@@ -278,7 +273,7 @@ input[type=range]{width:100%;accent-color:var(--lamp);margin:4px 0}
 <script>
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const stage = $('#stage'), scene = $('#scene'), capEl = $('#caption'), prog = $('#progress'), strip = $('#strip');
+const stage = $('#stage'), scene = $('#scene'), prog = $('#progress'), strip = $('#strip');
 
 const ICON = {
   play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>',
@@ -292,8 +287,8 @@ $$('[data-act="prev"]').forEach(b => b.innerHTML = ICON.prev);
 $$('[data-act="next"]').forEach(b => b.innerHTML = ICON.next);
 
 const S = { items: [], order: [], idx: 0, playing: false, busy: false, timer: 0, progAnim: null, pending: null,
-  theme: 'album', dur: 5, trans: 1.4, shuffle: false, loop: true, caption: true, fit: 'cover' };
-const KEYS = ['theme', 'dur', 'trans', 'shuffle', 'loop', 'caption', 'fit'];
+  theme: 'album', dur: 5, trans: 1.4, shuffle: false, loop: true, fit: 'cover' };
+const KEYS = ['theme', 'dur', 'trans', 'shuffle', 'loop', 'fit'];
 try { const saved = JSON.parse(localStorage.getItem('lanterna-magica') || '{}'); KEYS.forEach(k => { if (k in saved) S[k] = saved[k]; }); } catch {}
 const save = () => { try { localStorage.setItem('lanterna-magica', JSON.stringify(Object.fromEntries(KEYS.map(k => [k, S[k]])))); } catch {} };
 
@@ -373,8 +368,7 @@ function fitRect(r, W, H) {
 function fillPage(el, k) {
   const it = at(k);
   if (!it) { el.innerHTML = `<div class="end">${n() ? 'fim' : ''}</div>`; return; }
-  el.innerHTML = `<div class="mount"><div class="photo" style="--r:${it.r || 1.5}"><img src="${it.url}" alt=""><i class="tab tl"></i><i class="tab tr"></i><i class="tab bl"></i><i class="tab br"></i></div></div>`
-    + (S.caption ? `<div class="cap">${esc(pretty(it.name))}</div>` : '') + `<div class="folio">${k + 1}</div>`;
+  el.innerHTML = `<div class="mount"><div class="photo" style="--r:${it.r || 1.5}"><img src="${it.url}" alt=""><i class="tab tl"></i><i class="tab tr"></i><i class="tab bl"></i><i class="tab br"></i></div></div>` + `<div class="folio">${k + 1}</div>`;
 }
 
 const THEMES = {
@@ -434,7 +428,7 @@ const THEMES = {
       const dx = +(Math.random() * 26 - 13).toFixed(1), dy = +(Math.random() * 10 - 5).toFixed(1), rot = +(Math.random() * 14 - 7).toFixed(1);
       const t = `translate(-50%,-50%) translate(${dx}cqw,${dy}cqh) rotate(${rot}deg)`;
       p.dataset.t = t; p.style.transform = t;
-      p.innerHTML = `<div class="pic" style="--r:${it.r};background-image:url('${it.url}')"></div>` + (S.caption ? `<div class="cap">${esc(pretty(it.name))}</div>` : '');
+      p.innerHTML = `<div class="pic" style="--r:${it.r};background-image:url('${it.url}')"></div>`;
       [...scene.children].forEach(c => c.classList.add('old'));
       scene.append(p);
       while (scene.children.length > 7) scene.firstElementChild.remove();
@@ -580,9 +574,6 @@ function ui() {
   const label = !N ? '0 fotos' : (b > a ? `${a}–${b} de ${N}` : `${a} de ${N}`);
   $$('[data-count]').forEach(e => e.textContent = label);
   $$('[data-act="play"]').forEach(btn => { btn.innerHTML = S.playing ? ICON.pause : ICON.play; btn.setAttribute('aria-label', S.playing ? 'Pausar' : 'Reproduzir'); });
-  const it = at(S.idx), showCap = S.caption && it && !['album', 'polaroid'].includes(S.theme);
-  capEl.hidden = !showCap;
-  if (showCap) capEl.textContent = pretty(it.name);
   [...strip.children].forEach((t, i) => t.classList.toggle('on', i >= S.idx && i < S.idx + st));
   const on = strip.children[S.idx];
   if (on) strip.scrollTo({ left: on.offsetLeft - strip.clientWidth / 2 + on.clientWidth / 2, behavior: reduced ? 'auto' : 'smooth' });
@@ -720,15 +711,14 @@ $$('input[name="theme"]').forEach(r => r.addEventListener('change', () => { if (
 $(`#fit-${S.fit}`).checked = true;
 $$('input[name="fit"]').forEach(r => r.addEventListener('change', () => { S.fit = r.value; save(); if (['kenburns', 'cube', 'mosaic'].includes(S.theme)) rerender(); }));
 
-const shuffle = $('#shuffle'), loop = $('#loop'), caption = $('#caption');
-shuffle.checked = S.shuffle; loop.checked = S.loop; caption.checked = S.caption;
+const shuffle = $('#shuffle'), loop = $('#loop');
+shuffle.checked = S.shuffle; loop.checked = S.loop;
 shuffle.addEventListener('change', async () => {
   S.shuffle = shuffle.checked; save();
   while (S.busy) await wait(50);
   setOrder(true); buildStrip(); rerender();
 });
 loop.addEventListener('change', () => { S.loop = loop.checked; save(); });
-caption.addEventListener('change', () => { S.caption = caption.checked; save(); rerender(); });
 
 /* ---------- fotos de exemplo ---------- */
 function mix(a, b, t) {
